@@ -13,8 +13,22 @@ import monitoring as monitor
 import sys
 import ctypes
 
+import wiringpi
 import flask 
+from flask import Flask, render_template, url_for, request, redirect, session
+#from flask_sqlalchemy import SQLAlchemy
+
 import flask_login
+
+from importlib import reload
+
+#from datetime import datetime
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.backends import default_backend
+import base64
 
 app = flask.Flask(__name__)
 app.secret_key = str(os.urandom(16))
@@ -23,9 +37,27 @@ login_manager.init_app(app)
 
 openplc_runtime = openplc.runtime()
 
+# GPIO Setup, we are using wiring Pi because openPLC does
+button_pin = 29  # Adjust the pin number based on your GPIO configuration
+wiringpi.wiringPiSetup()
+wiringpi.pinMode(button_pin, wiringpi.INPUT)
+wiringpi.pullUpDnControl(button_pin, wiringpi.PUD_UP)
+
+# Function to periodically check the button state
+def check_button_state():
+    return wiringpi.digitalRead(button_pin) == wiringpi.LOW
+
 class User(flask_login.UserMixin):
     pass
 
+class Key:
+    name = 'Name'
+    pub_key = 'Public Key'
+    priv_key = 'Private Key'
+
+    def __init__(self, name):
+        self.name = name
+        self.priv_key,self.pub_key =  generate_key_pair()
 
 def configure_runtime():
     global openplc_runtime
@@ -81,6 +113,54 @@ def delete_persistent_file():
         os.remove("persistent.file")
     print("persistent.file removed!")
 
+def generate_key_pair():
+    # Generate private key
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend()
+    )
+
+    # Get the corresponding public key
+    public_key = private_key.public_key()
+
+    # Serialize private key to string
+    private_key_str = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    ).decode('utf-8')
+
+    # Serialize public key to string
+    public_key_str = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode('utf-8')
+
+    return private_key_str, public_key_str
+
+def verify_signature(public_key_str, message, signature_base64):
+    # Deserialize public key from string
+    public_key = serialization.load_pem_public_key(
+        public_key_str.encode('utf-8'),
+        backend=default_backend()
+    )
+    signature = base64.b64decode(signature_base64)
+
+    # Verify the signature
+    try:
+        public_key.verify(
+            signature,
+            message.encode('utf-8'),
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+        return "True"
+    except Exception as e:
+        return 'False'
 
 def generate_mbconfig():
     database = "openplc.db"
@@ -432,35 +512,65 @@ def login():
     
     database = "openplc.db"
     conn = create_connection(database)
-    if (conn != None):
-        try:
-            cur = conn.cursor()
-            cur.execute("SELECT username, password, name, pict_file FROM Users")
-            rows = cur.fetchall()
-            cur.close()
-            conn.close()
+    if 'Login' in flask.request.form:
+        if (conn != None):
+            try:
+                cur = conn.cursor()
+                cur.execute("SELECT username, password, name, pict_file FROM Users")
+                rows = cur.fetchall()
+                cur.close()
+                conn.close()
 
-            for row in rows:
-                if (row[0] == username):
-                    if (row[1] == password):
-                        user = User()
-                        user.id = row[0]
-                        user.name = row[2]
-                        user.pict_file = str(row[3])
-                        flask_login.login_user(user)
-                        return flask.redirect(flask.url_for('dashboard'))
-                    else:
-                        return pages.login_head + pages.bad_login_body
+                for row in rows:
+                    if (row[0] == username):
+                        if (row[1] == password):
+                            user = User()
+                            user.id = row[0]
+                            user.name = row[2]
+                            user.pict_file = str(row[3])
+                            flask_login.login_user(user)
+                            return flask.redirect(flask.url_for('dashboard'))
+                        else:
+                            return pages.login_head + pages.bad_login_body
+                            
+                return pages.login_head + pages.bad_login_body
                         
-            return pages.login_head + pages.bad_login_body
-                    
-        except Error as e:
-            print("error connecting to the database" + str(e))
+            except Error as e:
+                print("error connecting to the database" + str(e))
+                return 'Error opening DB'
+        else:
             return 'Error opening DB'
+    elif 'New Login' in flask.request.form:
+        return flask.redirect('/newuser')
     else:
-        return 'Error opening DB'
+        return flask.redirect('/login')
+#    return pages.login_head + pages.bad_login_body
 
-    return pages.login_head + pages.bad_login_body
+@app.route('/newuser', methods=['GET', 'POST'])
+def newuser():
+    #button_state = session.get('button_pressed', False)
+    button_state = False
+    key = Key('New Key')
+    if not button_state:
+       button_state = check_button_state()
+       # Store the button state in the session
+       session['button_pressed'] = button_state
+
+    if flask.request.method == 'GET':
+        return render_template('newuser.html', key=key, button_state=button_state) 
+    if flask.request.method == 'POST':
+        if "New Login" in flask.request.form:
+            #return render_template('newuser.html', key=key)
+            print("Create Login")
+            return pages.login_head
+        elif "Validated Login" in flask.request.form:
+            print("Validated Login")
+            return 'Validated Login'
+        else:
+            print("IDK what happened")
+            return pages.login_head
+    else:
+        return "Some String"
 
 
 @app.route('/start_plc')
@@ -716,27 +826,27 @@ def update_program():
                     <br>"""
         return_str += draw_status()
         return_str += """
-        </div>
-            <div style="margin-left:320px; margin-right:70px">
-                <div style="w3-container">
-                    <br>
-                    <h2>Upload Program</h2>
-                    <form   id    = "uploadForm"
-                        enctype   =  "multipart/form-data"
-                        action    =  "update-program-action"
-                        method    =  "post">
+            </div>
+                <div style="margin-left:320px; margin-right:70px">
+                    <div style="w3-container">
                         <br>
-                        <input type="file" name="file" id="file" class="inputfile" accept=".st">
-                        <input type="submit" value="Upload Program" name="submit">
-                        <input type='hidden' name='prog_id' id='prog_id' value='""" + prog_id + """'/>
-                        <input type='hidden' value='""" + str(int(time.time())) + """' id='epoch_time' name='epoch_time'/>
-                    </form>
+                        <h2>Upload Program</h2>
+                        <form   id    = "uploadForm"
+                            enctype   =  "multipart/form-data"
+                            action    =  "update-program-action"
+                            method    =  "post">
+                            <br>
+                            <input type="file" name="file" id="file" class="inputfile" accept=".st">
+                            <input type="submit" value="Upload Program" name="submit">
+                            <input type='hidden' name='prog_id' id='prog_id' value='""" + prog_id + """'/>
+                            <input type='hidden' value='""" + str(int(time.time())) + """' id='epoch_time' name='epoch_time'/>
+                        </form>
+                    </div>
                 </div>
             </div>
-        </div>
-    </body>
-</html>"""
-        
+        </body>
+    </html>"""
+            
         
         return return_str
 
@@ -856,28 +966,28 @@ def upload_program():
         return_str += "<input type='hidden' value='" + filename + "' id='prog_file' name='prog_file'/>"
         return_str += "<input type='hidden' value='" + str(int(time.time())) + "' id='epoch_time' name='epoch_time'/>"
         return_str += """
-                        <br>
-                        <br>
-                        <center><input type="submit" class="button" style="font-weight:bold; width: 310px; height: 53px; margin: 0px 20px 0px 20px;" value="Upload program"></center>
-                    </form>
+                            <br>
+                            <br>
+                            <center><input type="submit" class="button" style="font-weight:bold; width: 310px; height: 53px; margin: 0px 20px 0px 20px;" value="Upload program"></center>
+                        </form>
+                    </div>
                 </div>
             </div>
-        </div>
-    </body>
-    
-    <script type="text/javascript">
-        function validateForm()
-        {
-            var progname = document.forms["uploadForm"]["prog_name"].value;
-            if (progname == "")
+        </body>
+        
+        <script type="text/javascript">
+            function validateForm()
             {
-                alert("Program Name cannot be blank");
-                return false;
+                var progname = document.forms["uploadForm"]["prog_name"].value;
+                if (progname == "")
+                {
+                    alert("Program Name cannot be blank");
+                    return false;
+                }
+                return true;
             }
-            return true;
-        }
-    </script>
-</html>"""
+        </script>
+    </html>"""
 
         return return_str
 
@@ -2374,8 +2484,8 @@ if __name__ == '__main__':
     st_file = file.read()
     st_file = st_file.replace('\r','').replace('\n','')
     
-    reload(sys)
-    sys.setdefaultencoding('UTF8')
+    #reload(sys)
+    #sys.setdefaultencoding('UTF8')
     
     database = "openplc.db"
     conn = create_connection(database)
@@ -2405,7 +2515,7 @@ if __name__ == '__main__':
                 configure_runtime()
                 monitor.parse_st(openplc_runtime.project_file)
             
-            app.run(debug=False, host='0.0.0.0', threaded=True, port=8080)
+            app.run(debug=True, host='0.0.0.0', threaded=True, port=8080)
         
         except Error as e:
             print("error connecting to the database" + str(e))

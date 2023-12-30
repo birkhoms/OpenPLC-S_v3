@@ -124,14 +124,33 @@ login_head = """
             <div class='login-page'>
               <div class='form'>
                 <form action='login' method='POST' class='login-form'>
-                    <h3 style=\"font-family:'Roboto', sans-serif; font-size:24px; color:#1F1F1F; padding:0px 0px 0px 0px; margin: 0px 0px 40px 0px\"><center><b>Welcome to OpenPLC</b></center></h3>"""
+                    <h3 style=\"font-family:'Roboto', sans-serif; font-size:24px; color:#1F1F1F; padding:0px 0px 0px 0px; margin: 0px 0px 40px 0px\"><center><b>Welcome to Secure OpenPLC</b></center></h3>"""
 
 login_body = """
                     <h3 style=\"font-family:'Roboto', sans-serif; font-size:14px; color:#1F1F1F; padding:0px 0px 0px 0px; margin: 0px 0px 40px 0px\"><center>Use your credentials to login</center></h3>
                     <input type='text' name='username' id='username' placeholder='username'/>
                     <input type='password' name='password' id='password' placeholder='password'/>
                     <br><br><br>
-                    <button>login</button>
+                    <button name="Login" value="Login">login</button>
+                    <br><br>
+                    <button name="New Login" value="New Login">New login</button>
+                </form>
+              </div>
+            </div>
+        </div>
+    </body>
+</html>"""
+
+newuser_body = """
+                    <h3 style=\"font-family:'Roboto', sans-serif; font-size:14px; color:#1F1F1F; padding:0px 0px 0px 0px; margin: 0px 0px 40px 0px\"><center>Use your credentials to login</center></h3>
+                    <input type='text' name='username' id='username' placeholder='username'/>
+                    <input type='text' name='public key' id='public key' placeholder='password'/>
+                    <input type='text' name='private key' id='private key' placeholder='username'/>
+                    <input type='text' name='validation' id='validation' placeholder='validation string'/>
+                    <br><br><br>
+                    <button name="Login" value="Login">login</button>
+                    <br><br>
+                    <button name="New Login" value="New Login">New login</button>
                 </form>
               </div>
             </div>
@@ -140,7 +159,7 @@ login_body = """
 </html>"""
 
 bad_login_body = """
-                    <h3 style=\"font-family:'Roboto', sans-serif; font-size:14px; color:red; font-weight: bold; padding:0px 0px 0px 0px; margin: 0px 0px 40px 0px\"><center>Bad credentials! Try again</center></h3>
+                    <h3 style=\"font-family:'Roboto', sans-serif; font-size:14px; color:red; font-weight: bold; padding:0px 0px 0px 0px; margin: 0px 0px 40px 0px\"><center>Bad credentials!! Try again</center></h3>
                     <input type='text' name='username' id='username' placeholder='username'/>
                     <input type='password' name='password' id='password' placeholder='password'/>
                     <br><br><br>
@@ -925,7 +944,7 @@ point_info_tail = """
             try
             {
                 req = new XMLHttpRequest();
-            } catch (e) 
+            } catch (e) |
             {
                 try
                 {
@@ -1186,6 +1205,7 @@ settings_tail = """
             }
             else
             {
+                
                 modbus_text.disabled = true;
             }
             
@@ -1526,7 +1546,7 @@ add_slave_devices_tail = """
                     <center><input type="submit" class="button" style="font-weight:bold; width: 310px; height: 53px; margin: 0px 20px 0px 20px;" value='Save device'></center>
                     </form>
                 </div>
-            </div>
+            </div>he 
         </div>
     </body>"""
     

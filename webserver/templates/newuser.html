@@ -1,0 +1,48 @@
+{% extends 'base.html'%}
+
+{% block head %}
+<title>Auto User</title>
+{% endblock %}
+
+{% block body%}
+<body>
+    <div class='top'>
+        <img src='/static/openplc_logo.gif' alt='OpenPLC' style='width:101px;height:40px;padding:5px 0px 0px 10px;float:left'>
+        <h3 sclass="openplc-heading"><center>OpenPLC Webserver</center></h3>
+    </div>
+    <div class='main'>
+        <div class='login-page'>
+            <div class='form'>
+            {% if button_state %}
+                <form action='newuser' method='POST' class='login-form'>
+                    <h3 sclass="welcome-heading"><center><b>Welcome to Secure OpenPLC</b></center></h3>
+                    <h3 sclass="login-subheading"><center>Create a new Login</center></h3>
+                    <input class="input" type='text' name='username' id='username' placeholder='username'/>
+                    <input class="input" type='text' name='public key' id='public key' value="{{key.pub_key}}"/>
+                    <input class="input" type='text' name='private key' id='private key' value="{{key.priv_key}}"/>
+                    <input class="input" type='text' name='validation' id='validation' placeholder='Validator Name'/>
+                    <input class="input" type='text' name='validation' id='validation' placeholder='Validation String'/>
+                    <br><br><br>
+                    <button class="button" name="New Login" value="New Login">Create Login</button>
+                    <br><br>
+                    <button class="button" name="Validated Login" value="Validated Login">Create validated Login</button>
+                </form>
+            {% else %}
+                <h3>Please confirm local access by pressing the Button</h3>
+                <!-- JavaScript for auto-refresh the entire page -->
+                <script>
+                    // Function to reload the entire page after 1 second
+                    function refreshPage() {
+                        location.reload();
+                    }
+
+                    // Set timeout to refresh again after 1 second
+                    setTimeout(refreshPage, 1000);
+                </script>
+            {% endif %}
+            </div>
+        </div> 
+    </div>
+
+</body>
+{% endblock %}
