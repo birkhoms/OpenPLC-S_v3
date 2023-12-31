@@ -13,32 +13,44 @@
     <div class='main'>
         <div class='login-page'>
             <div class='form'>
-            {% if button_state %}
-                <form action='newuser' method='POST' class='login-form'>
-                    <h3 sclass="welcome-heading"><center><b>Welcome to Secure OpenPLC</b></center></h3>
-                    <h3 sclass="login-subheading"><center>Create a new Login</center></h3>
-                    <input class="input" type='text' name='username' id='username' placeholder='username'/>
-                    <input class="input" type='text' name='public key' id='public key' value="{{key.pub_key}}"/>
-                    <input class="input" type='text' name='private key' id='private key' value="{{key.priv_key}}"/>
-                    <input class="input" type='text' name='validation' id='validation' placeholder='Validator Name'/>
-                    <input class="input" type='text' name='validation' id='validation' placeholder='Validation String'/>
-                    <br><br><br>
-                    <button class="button" name="New Login" value="New Login">Create Login</button>
-                    <br><br>
-                    <button class="button" name="Validated Login" value="Validated Login">Create validated Login</button>
-                </form>
-            {% else %}
-                <h3>Please confirm local access by pressing the Button</h3>
-                <!-- JavaScript for auto-refresh the entire page -->
-                <script>
-                    // Function to reload the entire page after 1 second
-                    function refreshPage() {
-                        location.reload();
-                    }
+            {% if get%}
+                {% if button_state %}
+                    <form action='newuser' method='POST' class='login-form'>
+                        <h3 sclass="welcome-heading"><center><b>Welcome to Secure OpenPLC</b></center></h3>
+                        <h3 sclass="login-subheading"><center>Create a new Login</center></h3>
+                        <input class="input" type='text' name='uname' id='uame' placeholder='username'/>
+                        <input class="input" type='text' name='public key' id='public key' value="{{key.pub_key}}"/>
+                        <input class="input" type='text' name='private key' id='private key' value="{{key.priv_key}}"/>
+                        <input class="input" type='text' name='validationname' id='validationname' placeholder='Validator Name'/>
+                        <input class="input" type='text' name='validationstring' id='validationstring' placeholder='Validation String'/>
+                        <br><br><br>
+                        <button class="button" name="New Login" value="New Login">Create Login</button>
+                        <br><br>
+                        <button class="button" name="Validated Login" value="Validated Login">Create validated Login</button>
+                    </form>
+                {% else %}
+                    <h3>Please confirm local access by pressing the Button</h3>
+                    <!-- JavaScript for auto-refresh the entire page -->
+                    <script>
+                        // Function to reload the entire page after 1 second
+                        function refreshPage() {
+                            location.reload();
+                        }
 
-                    // Set timeout to refresh again after 1 second
-                    setTimeout(refreshPage, 1000);
-                </script>
+                        // Set timeout to refresh again after 1 second
+                        setTimeout(refreshPage, 1000);
+                    </script>
+                {% endif %}
+            {% else %}
+                    {% if login %}
+                    <h3 sclass="login-subheading"><center>Login</center></h3>
+                         
+                    {% elif vlogin %}
+                    <h3 sclass="login-subheading"><center>VLogin</center></h3>
+                    
+                    {% else %}
+                    <h3 sclass="login-subheading"><center>Something went wrong</center></h3>
+                    {% endif %}
             {% endif %}
             </div>
         </div> 

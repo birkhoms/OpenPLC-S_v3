@@ -61,10 +61,15 @@ createTableUsers = r"""CREATE TABLE "Users" (
     `username`	TEXT NOT NULL UNIQUE,
     `email`	TEXT,
     `password`	TEXT NOT NULL,
-    `pict_file`	TEXT
+    `pict_file`	TEXT,
+    `level`	INTEGER NOT NULL,
+    `date_creation`	DATETIME,
+    `date_expiration` DATETIME NOT NULL,
+    `group` TEXT
+       
 )"""
 
-insertDefaultUser = r"INSERT INTO Users VALUES (10, 'OpenPLC User', 'openplc', 'openplc@openplc.com','openplc', NULL)"
+insertDefaultUser = r"INSERT INTO Users VALUES (10, 'OpenPLC User', 'openplc', 'openplc@openplc.com','openplc', NULL,'3',NULL, '2123-12-19 12:03:40.101672',NULL)"
 
 
 

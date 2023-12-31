@@ -29,6 +29,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.backends import default_backend
 import base64
+from datetime import datetime, timedelta
 
 app = flask.Flask(__name__)
 app.secret_key = str(os.urandom(16))
@@ -477,7 +478,8 @@ def request_loader(request):
                     user.id = row[0]
                     user.name = row[2]
                     user.pict_file = str(row[3])
-                    user.is_authenticated = (request.form['password'] == row[1])
+                    password = request.form['password']
+                    user.is_authenticated = (password and password == row[1])
                     return user
             return
                     
@@ -491,7 +493,7 @@ def request_loader(request):
 @app.before_request
 def before_request():
     flask.session.permanent = True
-    app.permanent_session_lifetime = datetime.timedelta(minutes=5)
+    app.permanent_session_lifetime = timedelta(minutes=5)
     flask.session.modified = True
         
 @app.route('/')
@@ -535,7 +537,7 @@ def login():
                             
                 return pages.login_head + pages.bad_login_body
                         
-            except Error as e:
+            except Error as e: 
                 print("error connecting to the database" + str(e))
                 return 'Error opening DB'
         else:
@@ -551,26 +553,49 @@ def newuser():
     #button_state = session.get('button_pressed', False)
     button_state = False
     key = Key('New Key')
+    # Reading button state in order to prevent user creation without physical access confirmation
     if not button_state:
        button_state = check_button_state()
        # Store the button state in the session
        session['button_pressed'] = button_state
 
     if flask.request.method == 'GET':
-        return render_template('newuser.html', key=key, button_state=button_state) 
-    if flask.request.method == 'POST':
-        if "New Login" in flask.request.form:
-            #return render_template('newuser.html', key=key)
-            print("Create Login")
-            return pages.login_head
-        elif "Validated Login" in flask.request.form:
-            print("Validated Login")
-            return 'Validated Login'
+        return render_template('newuser.html', key=key, button_state=button_state, get=True, login=False, vlogin=False) 
+    #Post request - here we decide between a new user and a validated user
+    elif flask.request.method == 'POST':
+        username = flask.request.form['uname']
+        validatorname = flask.request.form['validationname']
+        validationstring = flask.request.form['validationstring']
+     
+        (username, validatorname, validationstring) = sanitize_input(username, validatorname, validationstring)
+        database = "openplc.db"
+        conn = create_connection(database)
+        if (conn != None):
+                try:        
+                    cur = conn.cursor()
+                    if "New Login" in flask.request.form:
+                        cur.execute("INSERT INTO Users (name, username, password, level, date_creation, date_expiration) VALUES (?, ?, ?, ?, ?, ?)", (username, username, key.pub_key,0,datetime.utcnow(),datetime.utcnow()+ timedelta(weeks=1)))
+                        conn.commit()
+                        cur.close()
+                        conn.close()
+                        #return render_template('newuser.html', key=key)
+                        return render_template('newuser.html', key=key, button_state=button_state, get=False, login=True, vlogin=False)
+                    elif "Validated Login" in flask.request.form:
+                        if verify_signature(validatorname,validationstring):
+                            cur.execute("INSERT INTO Users (name, username, password, level, date_creation, date_expiration,group) VALUES (?, ?, ?, ?, ?, ?, ?)", (username, username, key.pub_key,1,datetime.utcnow(),datetime.utcnow()+ timedelta(weeks=1),validatorname))
+                            conn.commit()
+                            cur.close()
+                            conn.close()
+
+                        return render_template('newuser.html', key=key, button_state=button_state, get=False, login=False, vlogin=True)
+                except Error as e:
+                    print("error connecting to the database" + str(e))
+                    return 'Error connecting to the database. Make sure that your openplc.db file is not corrupt.<br><br>Error: ' + str(e)
         else:
-            print("IDK what happened")
+            print("Something in the POST went wrong")
             return pages.login_head
     else:
-        return "Some String"
+        return "IDK how you managed to send something beside a POST or GET"
 
 
 @app.route('/start_plc')
